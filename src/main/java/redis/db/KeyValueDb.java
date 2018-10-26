@@ -2,17 +2,16 @@ package redis.db;
 
 import redis.exception.ExpirationDateException;
 
-import java.time.Clock;
-import java.time.LocalDateTime;
+import java.time.*;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
 import static java.util.Arrays.asList;
 
-//TODO: Understand when creating a key is no threadSafe
 public class KeyValueDb {
     private static final String SET_CONFIRMATION = "OK";
+    private static final String NIL = "nil";
     private ConcurrentHashMap<String, DataOperations> map;
     private Clock clock;
 
@@ -50,7 +49,7 @@ public class KeyValueDb {
             map.put(key, data);
             return SET_CONFIRMATION;
         } else {
-            return "nil";
+            return NIL;
         }
     }
 
@@ -61,7 +60,7 @@ public class KeyValueDb {
             map.put(key, data);
             return SET_CONFIRMATION;
         } else {
-            return "nil";
+            return NIL;
         }
     }
 
@@ -97,7 +96,7 @@ public class KeyValueDb {
             return runnable.get();
         } catch (ExpirationDateException exception) {
             map.remove(key);
-            return "No Data";
+            return NIL;
         }
     }
 }
