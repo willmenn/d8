@@ -13,41 +13,18 @@ class DataOperations {
     private volatile SortedSet<Score> set = new TreeSet<>(Comparator.comparing(Score::getScore));
     private volatile LocalDateTime time;
 
-    String getData(Clock clock) {
-        synchronized (this) {
-            validateData(clock);
-            return Integer.toString(data);
-        }
-    }
-
-    int set(int newData) {
-        synchronized (this) {
-            this.data = newData;
-            return data;
-        }
-    }
-
-    int set(int newData, LocalDateTime time) {
-        synchronized (this) {
-            this.data = newData;
-            this.time = time;
-            return data;
-        }
-    }
-
-    int increment(Clock clock) {
-        synchronized (this) {
-            validateData(clock);
-            this.data = data + 1;
-            return data;
-        }
-    }
-
     //TODO: need to impl XX,NX,CH,INCR
     boolean addScore(String key, int score, Clock clock) {
         synchronized (this) {
             validateData(clock);
             return set.add(new Score(key, score));
+        }
+    }
+
+    String getData(Clock clock) {
+        synchronized (this) {
+            validateData(clock);
+            return Integer.toString(data);
         }
     }
 
@@ -89,6 +66,29 @@ class DataOperations {
             } else {
                 return new ArrayList<>();
             }
+        }
+    }
+
+    int increment(Clock clock) {
+        synchronized (this) {
+            validateData(clock);
+            this.data = data + 1;
+            return data;
+        }
+    }
+
+    int set(int newData) {
+        synchronized (this) {
+            this.data = newData;
+            return data;
+        }
+    }
+
+    int set(int newData, LocalDateTime time) {
+        synchronized (this) {
+            this.data = newData;
+            this.time = time;
+            return data;
         }
     }
 
