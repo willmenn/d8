@@ -85,22 +85,16 @@ class DataOperations {
             boolean withScore = isWithScore(withScoreCommand);
 
             if (normalizedStart > 0 && normalizedEnd < this.set.size()) {
-                List<Score> setAsList = new ArrayList<>(set);
-                List<String> result = new ArrayList(normalizedStart - normalizedEnd + 1);
-
-                addElementsFromRange(normalizedStart, normalizedEnd, withScore, setAsList, result);
-
-                return result;
+                return addElementsFromRange(normalizedStart, normalizedEnd, withScore);
             } else {
                 return new ArrayList<>();
             }
         }
     }
 
-    private void addElementsFromRange(int normalizedStart, int normalizedEnd,
-                                      boolean withScore,
-                                      List<Score> setAsList,
-                                      List<String> result) {
+    private List<String> addElementsFromRange(int normalizedStart, int normalizedEnd, boolean withScore) {
+        List<Score> setAsList = new ArrayList<>(set);
+        List<String> result = new ArrayList(normalizedStart - normalizedEnd + 1);
         for (int i = normalizedStart; i < normalizedEnd; i++) {
             Score score = setAsList.get(i);
             result.add(score.getKey());
@@ -108,6 +102,7 @@ class DataOperations {
                 result.add(Integer.toString(score.getScore()));
             }
         }
+        return result;
     }
 
     private boolean isWithScore(String withScoreCommand) {
