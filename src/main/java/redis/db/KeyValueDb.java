@@ -26,12 +26,12 @@ public class KeyValueDb {
 
     public String DEL(String key) {
         Supplier<String> getFunc = () -> map.remove(key).getData(clock);
-        return errorHandling(getFunc, key);
+        return executeQueryWithErrorHandling(getFunc, key);
     }
 
     public String GET(String key) {
         Supplier<String> getFunc = () -> map.get(key).getData(clock);
-        return errorHandling(getFunc, key);
+        return executeQueryWithErrorHandling(getFunc, key);
     }
 
     public String INCR(String key) {
@@ -39,7 +39,7 @@ public class KeyValueDb {
             map.get(key).increment(clock);
             return key;
         };
-        return errorHandling(incrFunc, key);
+        return executeQueryWithErrorHandling(incrFunc, key);
     }
 
     public String SET(String key, Integer value) {
@@ -73,12 +73,12 @@ public class KeyValueDb {
 
     public String ZCARD(String key) {
         Supplier<String> zcardFunc = () -> Integer.toString(map.get(key).getSetSize(clock));
-        return errorHandling(zcardFunc, key);
+        return executeQueryWithErrorHandling(zcardFunc, key);
     }
 
     public String ZRANK(String key) {
         Supplier<String> zrankFunc = () -> map.get(key).getRank(key, clock);
-        return errorHandling(zrankFunc, key);
+        return executeQueryWithErrorHandling(zrankFunc, key);
     }
 
     public String ZRANGE(String key, int start, int end, String withScore) {
@@ -88,10 +88,10 @@ public class KeyValueDb {
             return map.get(key).getRange(start, end, withScore, size, clock).toString();
         };
 
-        return errorHandling(zrangeFunc, key);
+        return executeQueryWithErrorHandling(zrangeFunc, key);
     }
 
-    private String errorHandling(Supplier<String> runnable, String key) {
+    private String executeQueryWithErrorHandling(Supplier<String> runnable, String key) {
         try {
             return runnable.get();
         } catch (ExpirationDateException exception) {
