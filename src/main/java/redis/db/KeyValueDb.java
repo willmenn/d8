@@ -20,8 +20,7 @@ public class KeyValueDb {
     public String DBSIZE() {
         return Integer.toString(map.size());
     }
-
-    //TODO: any another type of exception catch here.
+    
     public String DEL(String key) {
         Supplier<String> getFunc = () -> map.remove(key).getData(clock);
         return errorHandling(getFunc, key);
