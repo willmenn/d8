@@ -4,9 +4,13 @@ import redis.exception.ExpirationDateException;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
+import static java.util.Arrays.asList;
+
+//TODO: Understand when creating a key is no threadSafe
 public class KeyValueDb {
     private static final String SET_CONFIRMATION = "OK";
     private ConcurrentHashMap<String, DataOperations> map;
@@ -33,38 +37,48 @@ public class KeyValueDb {
 
     public String INCR(String key) {
         Supplier<String> incrFunc = () -> {
-            map.get(key).increment();
+            map.get(key).increment(clock);
             return key;
         };
         return errorHandling(incrFunc, key);
     }
 
     public String SET(String key, Integer value) {
-        DataOperations data = new DataOperations();
-        data.set(value);
-        map.put(key, data);
-        return SET_CONFIRMATION;
+        if (!map.containsKey(key)) {
+            DataOperations data = new DataOperations();
+            data.set(value);
+            map.put(key, data);
+            return SET_CONFIRMATION;
+        } else {
+            return "nil";
+        }
     }
 
     public String SET(String key, Integer value, LocalDateTime time) {
-        DataOperations data = new DataOperations();
-        data.set(value, time);
-        map.put(key, data);
-        return SET_CONFIRMATION;
+        if (!map.containsKey(key)) {
+            DataOperations data = new DataOperations();
+            data.set(value, time);
+            map.put(key, data);
+            return SET_CONFIRMATION;
+        } else {
+            return "nil";
+        }
     }
 
-    public String ZADD(String... scores) {
-        //TODO: ADD Scores
-        return "0";
+    public String ZADD(Set<ZaddArgs> args, String key, String... scores) {
+        if (!map.containsKey(key)) {
+            map.put(key, new DataOperations());
+        }
+        return Integer.toString(map.get(key).addScores(args, asList(scores), clock));
     }
 
     public String ZCARD(String key) {
-        Supplier<String> zcardFunc = () -> Integer.toString(map.get(key).getSetSize());
+        Supplier<String> zcardFunc = () -> Integer.toString(map.get(key).getSetSize(clock));
         return errorHandling(zcardFunc, key);
     }
 
     public String ZRANK(String key) {
-        Supplier<String> zrankFunc = () -> map.get(key).getRank(key);
+        Supplier<String> zrankFunc = () -> map.get(key).getRank(key, clock);
         return errorHandling(zrankFunc, key);
     }
 
@@ -72,7 +86,7 @@ public class KeyValueDb {
         Supplier<String> zrangeFunc = () -> {
             int size = Integer.parseInt(this.ZCARD(key));
 
-            return map.get(key).getRange(start, end, withScore, size).toString();
+            return map.get(key).getRange(start, end, withScore, size, clock).toString();
         };
 
         return errorHandling(zrangeFunc, key);

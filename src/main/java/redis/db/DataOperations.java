@@ -1,9 +1,11 @@
 package redis.db;
 
-import redis.exception.ExpirationDateException;
+import redis.exception.*;
 
 import java.time.*;
 import java.util.*;
+
+import static redis.db.ZaddArgs.*;
 
 class DataOperations {
     private static final int DUMMY_SCORE = 0;
@@ -14,11 +16,15 @@ class DataOperations {
     private volatile LocalDateTime time;
 
     //TODO: need to impl XX,NX,CH,INCR
-    boolean addScore(String key, int score, Clock clock) {
-        synchronized (this) {
-            validateData(clock);
-            return set.add(new Score(key, score));
+    int addScores(Set<ZaddArgs> args, List<String> scores, Clock clock) {
+        if (args.contains(INCR) && scores.size() != 2) {
+            throw new IncrOptionPreConditionException();
         }
+        int count = 0;
+        for (int i = 0; i < scores.size(); i = i + 2) {
+            count += addScore(scores.get(i), Integer.parseInt(scores.get(i + 1)), clock, args);
+        }
+        return count;
     }
 
     String getData(Clock clock) {
@@ -105,6 +111,33 @@ class DataOperations {
         return result;
     }
 
+    private int addScore(String key, int score, Clock clock, Set<ZaddArgs> args) {
+        validateData(clock);
+
+        if (set == null) {
+            set = new TreeSet<>();
+        }
+
+        if (set.contains(key) && (!args.contains(NX) || args.contains(INCR))) {
+            int scoreUpdated = updateScore(key, score, args.contains(INCR));
+            return convertResult(args, scoreUpdated);
+
+        } else if (!args.contains(XX)) {
+            set.add(new Score(key, score));
+            return 1;
+        }
+
+        throw new UnrecognizedArgException();
+    }
+
+    private int convertResult(Set<ZaddArgs> args, int scoreUpdated) {
+        if (args.contains(INCR)) {
+            return scoreUpdated;
+        } else {
+            return args.contains(CH) ? 1 : 0;
+        }
+    }
+
     private boolean isWithScore(String withScoreCommand) {
         return withScoreCommand != null && withScoreCommand.equals(WITH_SCORES_COMMAND_VERIFIER);
     }
@@ -114,6 +147,14 @@ class DataOperations {
             return size + pos;
         }
         return pos;
+    }
+
+    private int updateScore(String key, int scoreNumber, boolean isINCR) {
+        Score score = set.stream().filter(s -> s.getKey().equals(key))
+                .findFirst()
+                .orElseThrow(NullPointerException::new);
+        score.setScore(isINCR ? score.getScore() + scoreNumber : scoreNumber);
+        return score.getScore();
     }
 
     private void validateData(Clock clock) {
@@ -138,6 +179,10 @@ class DataOperations {
 
         private String getKey() {
             return key;
+        }
+
+        private void setScore(int score) {
+            this.score = score;
         }
 
         @Override
