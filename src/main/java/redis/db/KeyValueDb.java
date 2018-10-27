@@ -30,7 +30,14 @@ public class KeyValueDb {
     }
 
     public String GET(String key) {
-        Supplier<String> getFunc = () -> map.get(key).getData(clock);
+        Supplier<String> getFunc = () -> {
+            DataOperations dataOperations = map.get(key);
+            if (dataOperations != null) {
+                return dataOperations.getData(clock);
+            } else {
+                return NIL;
+            }
+        };
         return executeQueryWithErrorHandling(getFunc, key);
     }
 
@@ -76,12 +83,12 @@ public class KeyValueDb {
         return executeQueryWithErrorHandling(zcardFunc, key);
     }
 
-    public String ZRANK(String key) {
-        Supplier<String> zrankFunc = () -> map.get(key).getRank(key, clock);
+    public String ZRANK(String key, String secondKey) {
+        Supplier<String> zrankFunc = () -> map.get(key).getRank(secondKey, clock);
         return executeQueryWithErrorHandling(zrankFunc, key);
     }
 
-    public String ZRANGE(String key, int start, int end, String withScore) {
+    public String ZRANGE(String key, int start, int end, ZRangeArgs withScore) {
         Supplier<String> zrangeFunc = () -> {
             int size = Integer.parseInt(this.ZCARD(key));
 

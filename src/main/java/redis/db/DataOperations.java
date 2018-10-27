@@ -5,14 +5,14 @@ import redis.exception.*;
 import java.time.*;
 import java.util.*;
 
+import static java.util.Collections.sort;
 import static redis.db.ZaddArgs.*;
 
 class DataOperations {
     private static final int DUMMY_SCORE = 0;
     private static final String NIL = "nil";
-    private static final String WITH_SCORES_COMMAND_VERIFIER = "WITHSCORES";
     private volatile int data;
-    private volatile SortedSet<Score> set = new TreeSet<>(Comparator.comparing(Score::getScore));
+    private volatile Set<Score> set = new HashSet<>();
     private volatile LocalDateTime time;
 
     //TODO: need to impl XX,NX,CH,INCR
@@ -22,7 +22,7 @@ class DataOperations {
         }
         int count = 0;
         for (int i = 0; i < scores.size(); i = i + 2) {
-            count += addScore(scores.get(i), Integer.parseInt(scores.get(i + 1)), clock, args);
+            count += addScore(scores.get(i + 1), Integer.parseInt(scores.get(i)), clock, args);
         }
         return count;
     }
@@ -45,8 +45,9 @@ class DataOperations {
         synchronized (this) {
             validateData(clock);
 
-            if (set.contains(key)) {
+            if (set.contains(new Score(key, DUMMY_SCORE))) {
                 List<Score> list = new ArrayList<>(set);
+                Collections.sort(list, Comparator.comparing(Score::getKey));
                 for (int i = 0; i < set.size(); i++) {
                     if (list.get(i).equals(new Score(key, DUMMY_SCORE))) {
                         return Integer.toString(i);
@@ -59,7 +60,7 @@ class DataOperations {
         }
     }
 
-    List<String> getRange(int start, int end, String withScoreCommand, int size, Clock clock) {
+    List<String> getRange(int start, int end, ZRangeArgs withScoreCommand, int size, Clock clock) {
         synchronized (this) {
             validateData(clock);
 
@@ -67,7 +68,7 @@ class DataOperations {
             int normalizedEnd = normalizeArrayPosition(end, size);
             boolean withScore = isWithScore(withScoreCommand);
 
-            if (normalizedStart > 0 && normalizedEnd < this.set.size()) {
+            if (normalizedStart >= 0 && normalizedEnd < this.set.size()) {
                 return addElementsFromRange(normalizedStart, normalizedEnd, withScore);
             } else {
                 return new ArrayList<>();
@@ -100,7 +101,8 @@ class DataOperations {
 
     private List<String> addElementsFromRange(int normalizedStart, int normalizedEnd, boolean withScore) {
         List<Score> setAsList = new ArrayList<>(set);
-        List<String> result = new ArrayList(normalizedStart - normalizedEnd + 1);
+        sort(setAsList, Comparator.comparing(Score::getKey));
+        List<String> result = new ArrayList();
         for (int i = normalizedStart; i < normalizedEnd; i++) {
             Score score = setAsList.get(i);
             result.add(score.getKey());
@@ -118,7 +120,8 @@ class DataOperations {
             set = new TreeSet<>();
         }
 
-        if (set.contains(key) && (!args.contains(NX) || args.contains(INCR))) {
+        //TODO: o contains por algum motivo nao consegue achar o valor
+        if (set.contains(new Score(key, DUMMY_SCORE)) && (!args.contains(NX) || args.contains(INCR))) {
             int scoreUpdated = updateScore(key, score, args.contains(INCR));
             return convertResult(args, scoreUpdated);
 
@@ -134,12 +137,12 @@ class DataOperations {
         if (args.contains(INCR)) {
             return scoreUpdated;
         } else {
-            return args.contains(CH) ? 1 : 0;
+            return args.contains(CH) ? 1 : scoreUpdated;
         }
     }
 
-    private boolean isWithScore(String withScoreCommand) {
-        return withScoreCommand != null && withScoreCommand.equals(WITH_SCORES_COMMAND_VERIFIER);
+    private boolean isWithScore(ZRangeArgs withScoreCommand) {
+        return withScoreCommand != null;
     }
 
     private int normalizeArrayPosition(int pos, int size) {
@@ -163,7 +166,7 @@ class DataOperations {
         }
     }
 
-    private class Score {
+    private static class Score {
 
         private String key;
         private int score;
